@@ -10,6 +10,7 @@ namespace ZeroMQ.lib
 	using System.Reflection;
 	using System.Runtime.ConstrainedExecution;
 	using System.Runtime.InteropServices;
+	using System.Text.RegularExpressions;
 
 	public static partial class Platform
 	{
@@ -52,7 +53,6 @@ namespace ZeroMQ.lib
 				// Finally, this method fails, telling the user all libraryPaths searched.
 
 				var libraryPaths = new List<string>(Platform.LibraryPaths);
-
 				Platform.ExpandPaths(libraryPaths, "{System32}", Environment.SystemDirectory);
 	
 				var PATHs = new List<string>();
@@ -81,8 +81,21 @@ namespace ZeroMQ.lib
 				if (architecturePaths == null) architecturePaths = new string[] { architecture };
 				Platform.ExpandPaths(libraryPaths, "{Arch}", architecturePaths);
 
-				// Now TRY the enumerated Directories for libFile.so.*
+				var ln = libraryName.StartsWith("lib") ? libraryName.Substring(3) : libraryName;
+				var ext = ".dll";
+				var re = String.Format("^(lib{0}|{0})(-[a-z]+[0-9]+)?(-m[t|d])?(-[0-9]+_[0-9]+_[0-9]+)?{1}$", ln, ext);
+				var fl = Directory.EnumerateFiles(AppDomain.CurrentDomain.BaseDirectory, String.Format("*{0}*{1}", ln, ext),
+								SearchOption.TopDirectoryOnly);
+				foreach (var file in fl)
+				{
+					if (Regex.IsMatch(Path.GetFileName(file), re))
+					{
+						libraryPaths.Insert(0, file);
+						break;
+					}
+				}
 
+				// Now TRY the enumerated Directories for libFile.so.*
 				string traceLabel = string.Format("UnmanagedLibrary[{0}]", libraryName);
 
 				foreach (string libraryPath in libraryPaths)
